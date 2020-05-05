@@ -1,5 +1,5 @@
 from utilities.tf_utils import run_detector
-from model_evaluation import confusion_matrix
+from utilities import confusion_matrix
 from os import path
 from utilities.detection_parser import DetectionParser
 from utilities.coco_utils import generate_ground_truth_coco_data, generate_detection_coco_data, evaluate_from_file
@@ -70,19 +70,19 @@ def run_coco_evaluation(detection_file_path, groundtruth_file_path, output_dir_p
     print(f'\n\nCOCO evaluation saved to: {output_dir_path}')
 
 
-def evaluate(dir_with_trained_ckpt, tf_records_to_evaluate, test_img_dir, labelmap_path, should_draw_results=False):
+def evaluate(model_dir_path, eval_tfrecord_path, eval_img_dir_path, labelmap_path, should_draw_results=False):
 
 
     if not path.exists(labelmap_path):
         raise ValueError(
             f"The file labelmap.pbtxt NOT FOUND. The file does not exists on path: {labelmap_path}")
 
-    detection_record_path, evaluation_dir_path = initialize_evaluation(dir_with_trained_ckpt,
-                                                                       tf_records_to_evaluate)
+    detection_record_path, evaluation_dir_path = initialize_evaluation(model_dir_path,
+                                                                       eval_tfrecord_path)
 
     parser = DetectionParser(detection_record_path=detection_record_path,
                              label_map_path=labelmap_path,
-                             image_dir=test_img_dir)
+                             image_dir=eval_img_dir_path)
 
     parsed_data_list = parser.parse()
 
@@ -103,7 +103,7 @@ def evaluate(dir_with_trained_ckpt, tf_records_to_evaluate, test_img_dir, labelm
         if not path.exists(save_img_dir):
             os.mkdir(save_img_dir)
 
-        draw_detections(parsed_data_list, test_img_dir, labelmap_path, save_img_dir)
+        draw_detections(parsed_data_list, eval_img_dir_path, labelmap_path, save_img_dir)
 
     print('EVALUATION SUCCESFULLY FINISHED!!')
 
@@ -150,7 +150,7 @@ def create_frozen_inference_graph(dir_with_trained_ckpt, pipeline_path):
     FLAGS.pipeline_config_path = pipeline_path
     FLAGS.output_directory = dir_with_trained_ckpt
     FLAGS.trained_checkpoint_prefix = ckpt_path
-    export_inference_graph.main(0)
+    export_inference_graph.main(None)
 
     FLAGS.remove_flag_values(FLAGS.flag_values_dict())
 
@@ -189,10 +189,10 @@ if __name__ == '__main__':
     TEST_DATA_RECORD = r"C:\Code\Dataset2\annotations\printer\phase_2\test_full_printer_phase2.record"
     PATH_TO_EVALUATED_IMAGE_DIR = r'C:\Code\Dataset2\images'
     LABELMAP_PATH = r"C:\Code\Dataset2\label_maps\label_map_7_classes.pbtxt"
-    DRAW_RESULTS = False
+    DRAW_RESULTS = True
 
-    evaluate(dir_with_trained_ckpt=PATH_TO_DIR,
-             tf_records_to_evaluate=TEST_DATA_RECORD,
-             test_img_dir=PATH_TO_EVALUATED_IMAGE_DIR,
+    evaluate(model_dir_path=PATH_TO_DIR,
+             eval_tfrecord_path=TEST_DATA_RECORD,
+             eval_img_dir_path=PATH_TO_EVALUATED_IMAGE_DIR,
              labelmap_path=LABELMAP_PATH,
              should_draw_results=DRAW_RESULTS)

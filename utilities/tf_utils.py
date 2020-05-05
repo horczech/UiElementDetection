@@ -18,7 +18,7 @@ def run_detector(inference_graph_path, input_tfrecord_path, output_dir_path):
     FLAGS.output_tfrecord_path = output_file_path
     FLAGS.inference_graph = inference_graph_path
 
-    infer_detections.main(0)
+    infer_detections.main(None)
 
     print(f'Successfully finished object detection.\n'
           f'Saving result to: {output_file_path}')

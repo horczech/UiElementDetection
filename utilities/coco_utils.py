@@ -164,21 +164,8 @@ def evaluate_from_file(predictions_json_path, groundtruth_json_path):
     cocoGt = COCO(groundtruth_json_path)
     cocoDt = cocoGt.loadRes(predictions_json_path)
 
-    # gt = __draw_annoations(cocoGt.anns, r'C:\Code\TFOD\assets\android_dataset\raw_dataset\test\10063.jpg')
-    # dt = __draw_annoations(cocoDt.anns, r'C:\Code\TFOD\assets\android_dataset\raw_dataset\test\10063.jpg')
-    #
-    # plt.figure()
-    # plt.imshow(gt)
-    # plt.title("Groundtruth")
-    #
-    # plt.figure()
-    # plt.imshow(dt)
-    # plt.title("Detected")
-    #
-    # plt.show()
-
     cocoEval = COCOeval(cocoGt, cocoDt, 'bbox')
-    # cocoEval.params.imgIds = imgIds
+
     cocoEval.evaluate()
     cocoEval.accumulate()
     cocoEval.summarize()
