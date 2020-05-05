@@ -9,7 +9,8 @@ import numpy as np
 from utilities.visualization.bbox_drawer import BboxDrawer
 import os
 from models.research.object_detection import export_inference_graph
-from glob import  glob
+from glob import glob
+
 
 def create_confusion_matrix(parsed_data_list, labelmap_path, output_dir_path):
     print(f'Creating confusion matrix')
@@ -69,10 +70,15 @@ def run_coco_evaluation(detection_file_path, groundtruth_file_path, output_dir_p
     print(f'\n\nCOCO evaluation saved to: {output_dir_path}')
 
 
-def evaluate(dir_with_trained_ckpt, tf_records_to_evaluate, test_img_dir, should_draw_results=False):
+def evaluate(dir_with_trained_ckpt, tf_records_to_evaluate, test_img_dir, labelmap_path, should_draw_results=False):
 
-    detection_record_path, evaluation_dir_path, labelmap_path = initialize_evaluation(dir_with_trained_ckpt,
-                                                                                      tf_records_to_evaluate)
+
+    if not path.exists(labelmap_path):
+        raise ValueError(
+            f"The file labelmap.pbtxt NOT FOUND. The file does not exists on path: {labelmap_path}")
+
+    detection_record_path, evaluation_dir_path = initialize_evaluation(dir_with_trained_ckpt,
+                                                                       tf_records_to_evaluate)
 
     parser = DetectionParser(detection_record_path=detection_record_path,
                              label_map_path=labelmap_path,
@@ -91,7 +97,6 @@ def evaluate(dir_with_trained_ckpt, tf_records_to_evaluate, test_img_dir, should
     run_coco_evaluation(detection_file_path=detection_file_path,
                         groundtruth_file_path=groundtruth_file_path,
                         output_dir_path=evaluation_dir_path)
-
 
     if should_draw_results:
         save_img_dir = path.join(evaluation_dir_path, 'images')
@@ -115,20 +120,15 @@ def initialize_evaluation(dir_with_trained_ckpt, tf_records_to_evaluate):
             f'INFO: frozen_inference_graph.pb NOT found so it will be generated from checpoint file. Path of frozen grah: {inference_graph_path}')
         create_frozen_inference_graph(dir_with_trained_ckpt, pipeline_path)
 
-
-    labelmap_path = path.join(dir_with_trained_ckpt, 'labelmap.pbtxt')
-    if not path.exists(labelmap_path):
-        raise ValueError(
-            f"The directory must contain labelmap.pbtxt file. The file does not exists on path: {labelmap_path}")
     evaluation_dir_path = path.join(dir_with_trained_ckpt, 'evaluation')
-
     if not path.exists(evaluation_dir_path):
         print(f'INFO: Creating a directory for evaluation on path {evaluation_dir_path}')
         os.mkdir(evaluation_dir_path)
     infer_detection_path = path.join(evaluation_dir_path, 'infer_detections.record')
 
     if not path.exists(infer_detection_path):
-        print(f'INFO: detection data were not found so the model will be run to generate the detection data. File not found on path: {infer_detection_path}')
+        print(
+            f'INFO: detection data were not found so the model will be run to generate the detection data. File not found on path: {infer_detection_path}')
 
         detection_record_path = run_detector(inference_graph_path=inference_graph_path,
                                              input_tfrecord_path=tf_records_to_evaluate,
@@ -137,11 +137,7 @@ def initialize_evaluation(dir_with_trained_ckpt, tf_records_to_evaluate):
         print(f'SKIPPING DETECTION PART. USING PREGENERATED INFER RECORD FILE')
         detection_record_path = infer_detection_path
 
-
-
-
-
-    return detection_record_path, evaluation_dir_path, labelmap_path
+    return detection_record_path, evaluation_dir_path
 
 
 def create_frozen_inference_graph(dir_with_trained_ckpt, pipeline_path):
@@ -167,7 +163,6 @@ def draw_detections(parsed_data_list, image_dir, labelmap_path, save_img_dir):
         image_path = path.join(image_dir, data.image_name)
         image = cv2.imread(image_path)
 
-
         gt_image = drawer.draw_detections(image=image.copy(),
                                           bboxes=data.groundtruth_bboxes.coordinates.coordinates,
                                           class_indexes=data.groundtruth_bboxes.class_ids,
@@ -190,25 +185,14 @@ def draw_detections(parsed_data_list, image_dir, labelmap_path, save_img_dir):
 
 
 if __name__ == '__main__':
-
-    PATH_TO_DIR = r'C:\Code\TrainedModels\01_ssd_inception_v2_coco_2018_01_28'
-    PATH_TO_DIR = r'C:\Users\horakm\Desktop\test'
+    PATH_TO_DIR = r'C:\Users\horakm\Desktop\test\test'
     TEST_DATA_RECORD = r"C:\Code\Dataset2\annotations\printer\phase_2\test_full_printer_phase2.record"
     PATH_TO_EVALUATED_IMAGE_DIR = r'C:\Code\Dataset2\images'
-    DRAW_RESULTS = True
-
-
-
-    # evaluate(model_path=PATH_TO_MODEL,
-    #          labelmap_path=PATH_TO_LABELMAP,
-    #          tf_records_to_evaluate=TEST_DATA_RECORD,
-    #          output_dir_path=PATH_TO_RESULT_IMAGE_DIR,
-    #          test_img_dir=PATH_TO_EVALUATED_IMAGE_DIR,
-    #          infer_detection_path=INFER_DETECTIONS_path,
-    #          should_draw_results=DRAW_RESULTS)
+    LABELMAP_PATH = r"C:\Code\Dataset2\label_maps\label_map_7_classes.pbtxt"
+    DRAW_RESULTS = False
 
     evaluate(dir_with_trained_ckpt=PATH_TO_DIR,
              tf_records_to_evaluate=TEST_DATA_RECORD,
              test_img_dir=PATH_TO_EVALUATED_IMAGE_DIR,
+             labelmap_path=LABELMAP_PATH,
              should_draw_results=DRAW_RESULTS)
-
