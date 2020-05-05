@@ -4,7 +4,6 @@ import cv2
 from object_detection.utils import visualization_utils as vis_util
 from utilities.visualization.bbox_drawer import BboxDrawer
 from os import path
-from utils import pil_img_to_numpy_array, load_img_to_np
 
 
 def draw_bboxes(annotations_path, image_dir, save_dir, labelmap_path):
