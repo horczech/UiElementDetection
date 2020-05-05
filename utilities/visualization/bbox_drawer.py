@@ -36,8 +36,20 @@ class BboxDrawer:
             line_thickness=8)
         return image
 
-    def draw_detections(self):
-        pass
+    def draw_detections(self, image, bboxes, class_indexes, detection_scores, use_normalized_coordinates=False):
+
+        if detection_scores is None:
+            detection_scores = np.ones(len(class_indexes))
+
+        vis_util.visualize_boxes_and_labels_on_image_array(
+            image,
+            np.asarray(bboxes),
+            np.asarray(class_indexes),
+            detection_scores,
+            self.category_index,
+            use_normalized_coordinates=use_normalized_coordinates,
+            line_thickness=8)
+        return image
 
 
 

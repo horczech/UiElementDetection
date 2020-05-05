@@ -39,7 +39,7 @@ def run(source_folder, destination_folder):
 
 
     while True:
-        time.sleep(5)
+        time.sleep(DELAY)
 
         now = datetime.now()
         current_time = now.strftime("%H:%M:%S")

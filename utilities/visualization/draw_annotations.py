@@ -49,7 +49,7 @@ def run(annotation_dir, image_dir, save_dir, labelmap_path):
 if __name__ == '__main__':
     ANNOTATION_DIR_PATH = r'C:\Code\Dataset2\annotations\android\checked_dataset\all'
     IMAGE__DIR_PATH = r'C:\Code\Dataset2\images'
-    PATH_TO_LABEL_MAP = r"C:\Code\Dataset2\label_maps\label_map_8_classes.pbtxt"
+    PATH_TO_LABEL_MAP = r"C:\Code\Dataset2\label_maps\label_map_7_classes.pbtxt"
 
     SAVE_DIR_PATH = r'C:\Code\Dataset2\dummy\android_corrected'
 

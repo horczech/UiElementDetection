@@ -27,10 +27,10 @@ def split(annotation_dir, output_train_dir, output_test_dir, split_ratio):
 
 
 if __name__ == '__main__':
-    PATH_TO_ANNOTATION_DIR = r'C:\Code\Dataset2\annotations\android\checked_dataset\all'
-    SPLIT_RATIO = 0.75
-    OUTPUT_DIR_TRAIN = r'C:\Code\Dataset2\annotations\android\checked_dataset\splitted\train'
-    OUTPUT_DIR_TEST = r'C:\Code\Dataset2\annotations\android\checked_dataset\splitted\test'
+    PATH_TO_ANNOTATION_DIR = r'C:\Code\Dataset2\annotations\printer\entire_dataset_7classes'
+    SPLIT_RATIO = 0.8
+    OUTPUT_DIR_TRAIN = r'C:\Code\Dataset2\annotations\printer\phase_2\train'
+    OUTPUT_DIR_TEST = r'C:\Code\Dataset2\annotations\printer\phase_2\test'
 
     split(annotation_dir=PATH_TO_ANNOTATION_DIR,
           output_train_dir=OUTPUT_DIR_TRAIN,

@@ -4,7 +4,12 @@ from os import path
 from utilities.detection_parser import DetectionParser
 from utilities.coco_utils import generate_ground_truth_coco_data, generate_detection_coco_data, evaluate_from_file
 import json
-
+import cv2
+import numpy as np
+from utilities.visualization.bbox_drawer import BboxDrawer
+import os
+from models.research.object_detection import export_inference_graph
+from glob import  glob
 
 def create_confusion_matrix(parsed_data_list, labelmap_path, output_dir_path):
     print(f'Creating confusion matrix')
@@ -64,15 +69,10 @@ def run_coco_evaluation(detection_file_path, groundtruth_file_path, output_dir_p
     print(f'\n\nCOCO evaluation saved to: {output_dir_path}')
 
 
-def evaluate(model_path, labelmap_path, tf_records_to_evaluate, test_img_dir, output_dir_path, infer_detection_path=None):
+def evaluate(dir_with_trained_ckpt, tf_records_to_evaluate, test_img_dir, should_draw_results=False):
 
-    if infer_detection_path is None:
-        detection_record_path = run_detector(inference_graph_path=model_path,
-                                             input_tfrecord_path=tf_records_to_evaluate,
-                                             output_dir_path=output_dir_path)
-    else:
-        print(f'SKIPPING DETECTION PART. USING PREGENERATED INFER RECORD FILE')
-        detection_record_path = infer_detection_path
+    detection_record_path, evaluation_dir_path, labelmap_path = initialize_evaluation(dir_with_trained_ckpt,
+                                                                                      tf_records_to_evaluate)
 
     parser = DetectionParser(detection_record_path=detection_record_path,
                              label_map_path=labelmap_path,
@@ -82,51 +82,133 @@ def evaluate(model_path, labelmap_path, tf_records_to_evaluate, test_img_dir, ou
 
     create_confusion_matrix(parsed_data_list=parsed_data_list,
                             labelmap_path=labelmap_path,
-                            output_dir_path=output_dir_path)
+                            output_dir_path=evaluation_dir_path)
 
     detection_file_path, groundtruth_file_path = create_coco_evaluation(parsed_data_list=parsed_data_list,
                                                                         labelmap_path=labelmap_path,
-                                                                        output_dir_path=output_dir_path)
+                                                                        output_dir_path=evaluation_dir_path)
 
     run_coco_evaluation(detection_file_path=detection_file_path,
                         groundtruth_file_path=groundtruth_file_path,
-                        output_dir_path=output_dir_path)
+                        output_dir_path=evaluation_dir_path)
+
+
+    if should_draw_results:
+        save_img_dir = path.join(evaluation_dir_path, 'images')
+        if not path.exists(save_img_dir):
+            os.mkdir(save_img_dir)
+
+        draw_detections(parsed_data_list, test_img_dir, labelmap_path, save_img_dir)
 
     print('EVALUATION SUCCESFULLY FINISHED!!')
 
 
-def draw_detections():
-    pass
+def initialize_evaluation(dir_with_trained_ckpt, tf_records_to_evaluate):
+    pipeline_path = path.join(dir_with_trained_ckpt, r'pipeline.config')
+    if not path.exists(pipeline_path):
+        raise ValueError(
+            f"The directory must contain pipeline.config file. The file does not exists on path: {pipeline_path}")
+
+    inference_graph_path = path.join(dir_with_trained_ckpt, 'frozen_inference_graph.pb')
+    if not path.exists(inference_graph_path):
+        print(
+            f'INFO: frozen_inference_graph.pb NOT found so it will be generated from checpoint file. Path of frozen grah: {inference_graph_path}')
+        create_frozen_inference_graph(dir_with_trained_ckpt, pipeline_path)
+
+
+    labelmap_path = path.join(dir_with_trained_ckpt, 'labelmap.pbtxt')
+    if not path.exists(labelmap_path):
+        raise ValueError(
+            f"The directory must contain labelmap.pbtxt file. The file does not exists on path: {labelmap_path}")
+    evaluation_dir_path = path.join(dir_with_trained_ckpt, 'evaluation')
+
+    if not path.exists(evaluation_dir_path):
+        print(f'INFO: Creating a directory for evaluation on path {evaluation_dir_path}')
+        os.mkdir(evaluation_dir_path)
+    infer_detection_path = path.join(evaluation_dir_path, 'infer_detections.record')
+
+    if not path.exists(infer_detection_path):
+        print(f'INFO: detection data were not found so the model will be run to generate the detection data. File not found on path: {infer_detection_path}')
+
+        detection_record_path = run_detector(inference_graph_path=inference_graph_path,
+                                             input_tfrecord_path=tf_records_to_evaluate,
+                                             output_dir_path=evaluation_dir_path)
+    else:
+        print(f'SKIPPING DETECTION PART. USING PREGENERATED INFER RECORD FILE')
+        detection_record_path = infer_detection_path
+
+
+
+
+
+    return detection_record_path, evaluation_dir_path, labelmap_path
+
+
+def create_frozen_inference_graph(dir_with_trained_ckpt, pipeline_path):
+    from models.research.object_detection.export_inference_graph import FLAGS
+    ckpt_file_list = glob(path.join(dir_with_trained_ckpt, r'model.ckpt-*.meta'))
+    if len(ckpt_file_list) != 1:
+        raise ValueError("The directory HAVE to contain only one checkpoint file.")
+    ckpt_path = ckpt_file_list[0].replace('.meta', '')
+    FLAGS.input_type = r'image_tensor'
+    FLAGS.pipeline_config_path = pipeline_path
+    FLAGS.output_directory = dir_with_trained_ckpt
+    FLAGS.trained_checkpoint_prefix = ckpt_path
+    export_inference_graph.main(0)
+
+    FLAGS.remove_flag_values(FLAGS.flag_values_dict())
+
+
+def draw_detections(parsed_data_list, image_dir, labelmap_path, save_img_dir):
+    drawer = BboxDrawer(labelmap_path)
+
+    for idx, data in enumerate(parsed_data_list):
+        print(f'Drawing image {idx}/{len(parsed_data_list)}')
+        image_path = path.join(image_dir, data.image_name)
+        image = cv2.imread(image_path)
+
+
+        gt_image = drawer.draw_detections(image=image.copy(),
+                                          bboxes=data.groundtruth_bboxes.coordinates.coordinates,
+                                          class_indexes=data.groundtruth_bboxes.class_ids,
+                                          detection_scores=data.groundtruth_bboxes.scores,
+                                          use_normalized_coordinates=True)
+
+        dt_image = drawer.draw_detections(image=image.copy(),
+                                          bboxes=data.detected_bboxes.coordinates.coordinates,
+                                          class_indexes=data.detected_bboxes.class_ids,
+                                          detection_scores=data.detected_bboxes.scores,
+                                          use_normalized_coordinates=True)
+
+        merged_images = np.hstack((dt_image, gt_image))
+
+        save_image_path = path.join(save_img_dir, data.image_name)
+        if not path.exists(path.dirname(save_image_path)):
+            os.mkdir(path.dirname(save_image_path))
+
+        cv2.imwrite(save_image_path, merged_images)
 
 
 if __name__ == '__main__':
-    # PATH_TO_MODEL = r'C:\Code\TFOD\assets\trained_models\faster_rcnn_resnet50_coco_2018_01_28_v1\transformed_model\frozen_inference_graph.pb'
-    # PATH_TO_LABELMAP = r'C:\Code\TFOD\assets\trained_models\faster_rcnn_resnet50_coco_2018_01_28_v1\label_map.pbtxt'
-    # TEST_DATA_RECORD = r'C:\Code\TFOD\test_dir\tfrecord_generator_output\train.record'
-    # IMG_SUFFIX = r'.jpg'
-    # MAX_IMAGE_COUNT = None
-    # PATH_TO_RESULT_IMAGE_DIR = r'C:\Code\TFOD\test_dir\evaluation_results22'
-    # PATH_TO_EVALUATED_IMAGE_DIR = r'C:\Code\TFOD\assets\android_dataset\checked_dataset\images'
 
-    PATH_TO_MODEL = r"C:\Code\TrainedModels\faster_rcnn_inception_v2_coco_2018_01_28\only_android_dataset\fixed_600_960\frozen_inference_graph.pb"
-    PATH_TO_LABELMAP = r"C:\Code\Dataset2\label_maps\label_map_8_classes.pbtxt"
-    TEST_DATA_RECORD = r"C:\Code\Datasets\android_dataset\checked_android\dataset_without_bullshit_listitem_classes\test.record"
-    IMG_SUFFIX = r'.png'
-    MAX_IMAGE_COUNT = None
-    PATH_TO_RESULT_IMAGE_DIR = r"C:\Code\TrainedModels\faster_rcnn_inception_v2_coco_2018_01_28\only_android_dataset\fixed_600_960\evaluation"
-    PATH_TO_EVALUATED_IMAGE_DIR = r"C:\Code\Dataset2\images\android"
-    # INFER_DETECTIONS_path = r"C:\Code\TrainedModels\faster_rcnn_inception_v2_coco_2018_01_28\trained_just_on_printer_dataset\evaluation_result\infer_detections.record"
-    INFER_DETECTIONS_path = None
+    PATH_TO_DIR = r'C:\Code\TrainedModels\01_ssd_inception_v2_coco_2018_01_28'
+    PATH_TO_DIR = r'C:\Users\horakm\Desktop\test'
+    TEST_DATA_RECORD = r"C:\Code\Dataset2\annotations\printer\phase_2\test_full_printer_phase2.record"
+    PATH_TO_EVALUATED_IMAGE_DIR = r'C:\Code\Dataset2\images'
+    DRAW_RESULTS = True
 
-    evaluate(model_path=PATH_TO_MODEL,
-             labelmap_path=PATH_TO_LABELMAP,
+
+
+    # evaluate(model_path=PATH_TO_MODEL,
+    #          labelmap_path=PATH_TO_LABELMAP,
+    #          tf_records_to_evaluate=TEST_DATA_RECORD,
+    #          output_dir_path=PATH_TO_RESULT_IMAGE_DIR,
+    #          test_img_dir=PATH_TO_EVALUATED_IMAGE_DIR,
+    #          infer_detection_path=INFER_DETECTIONS_path,
+    #          should_draw_results=DRAW_RESULTS)
+
+    evaluate(dir_with_trained_ckpt=PATH_TO_DIR,
              tf_records_to_evaluate=TEST_DATA_RECORD,
-             output_dir_path=PATH_TO_RESULT_IMAGE_DIR,
              test_img_dir=PATH_TO_EVALUATED_IMAGE_DIR,
-             infer_detection_path=INFER_DETECTIONS_path)
+             should_draw_results=DRAW_RESULTS)
 
-    # from object_detection.inference import infer_detections
-    # import tensorflow as tf
-    # from object_detection.inference.infer_detections import FLAGS
-    # from model_evaluation import confusion_matrix
-    #

@@ -34,7 +34,7 @@ def run(annotaiton_dir_path):
 
 
 if __name__ == '__main__':
-    PATH_TO_ANNOTATION_DIR = r"C:\Code\Dataset2\annotations\printer\splitted\test"
+    PATH_TO_ANNOTATION_DIR = r"C:\Code\Dataset2\annotations\printer\phase_1\test"
 
     class_distribution_dic = run(annotaiton_dir_path=PATH_TO_ANNOTATION_DIR)
 
