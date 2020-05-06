@@ -187,7 +187,7 @@ def draw_detections(parsed_data_list, image_dir, labelmap_path, save_img_dir):
 if __name__ == '__main__':
     PATH_TO_DIR = r'C:\Users\horakm\Desktop\test\test'
     TEST_DATA_RECORD = r"C:\Code\Dataset2\annotations\printer\phase_2\test_full_printer_phase2.record"
-    PATH_TO_EVALUATED_IMAGE_DIR = r'C:\Code\Dataset2\images'
+    PATH_TO_EVALUATED_IMAGE_DIR = r'C:\Code\Dataset2\images\printer'
     LABELMAP_PATH = r"C:\Code\Dataset2\label_maps\label_map_7_classes.pbtxt"
     DRAW_RESULTS = True
 

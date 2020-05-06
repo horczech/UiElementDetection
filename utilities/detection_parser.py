@@ -38,7 +38,7 @@ class DetectionParser:
                 print(f'Skipped image No.{image_idx}')
                 continue
 
-            image_name = decoded_dict[standard_fields.InputDataFields.key]
+            image_name = path.basename(decoded_dict[standard_fields.InputDataFields.key])
 
             groundtruth_boxes = decoded_dict[standard_fields.InputDataFields.groundtruth_boxes]
             groundtruth_classes = decoded_dict[standard_fields.InputDataFields.groundtruth_classes]
